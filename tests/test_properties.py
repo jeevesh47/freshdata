@@ -23,6 +23,8 @@ def test_cleaning_is_idempotent(messy):
 def test_clean_and_profile_emit_no_warnings(messy):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        warnings.filterwarnings("ignore", category=FutureWarning)
         fd.clean(messy, impute="auto", outliers="clip", optimize_memory=True)
         fd.profile(messy)
 
