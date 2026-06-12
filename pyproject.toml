@@ -1,0 +1,96 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "freshdata"
+version = "0.1.0"
+description = "Fast, safe, automatic data cleaning for real-world tabular data."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Johnny Wilson Dougherty", email = "jyothiswaroop2803@gmail.com" },
+]
+keywords = [
+    "data-cleaning",
+    "data-quality",
+    "pandas",
+    "preprocessing",
+    "etl",
+    "tabular-data",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pandas>=1.5",
+    "numpy>=1.21",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.8",
+    "build>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/JohnnyWilson-Portfolio/freshdata"
+Repository = "https://github.com/JohnnyWilson-Portfolio/freshdata"
+Issues = "https://github.com/JohnnyWilson-Portfolio/freshdata/issues"
+Changelog = "https://github.com/JohnnyWilson-Portfolio/freshdata/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/freshdata"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "CHANGELOG.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+xfail_strict = true
+
+[tool.ruff]
+line-length = 99
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RET", "PL"]
+ignore = [
+    "PLR0911", # too many returns — dtype heuristics are naturally branchy
+    "PLR0912", # too many branches — cleaning steps are naturally branchy
+    "PLR0913", # many keyword options is the point of the config surface
+    "PLR2004", # magic-value comparisons in heuristics are documented inline
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["PLR2004", "SIM117"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+files = ["src/freshdata"]
+
+[[tool.mypy.overrides]]
+module = ["pandas.*", "numpy.*"]
+ignore_missing_imports = true
