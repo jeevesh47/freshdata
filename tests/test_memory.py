@@ -4,6 +4,10 @@ import pandas as pd
 import freshdata as fd
 
 
+def is_string(dtype) -> bool:
+    return dtype == object or isinstance(dtype, pd.StringDtype)
+
+
 def test_dtypes_untouched_by_default():
     df = pd.DataFrame({"i": np.arange(100, dtype="int64"),
                        "f": np.linspace(0, 1, 100),
@@ -11,7 +15,7 @@ def test_dtypes_untouched_by_default():
     out = fd.clean(df)
     assert out["i"].dtype == "int64"
     assert out["f"].dtype == "float64"
-    assert out["c"].dtype == object
+    assert is_string(out["c"].dtype)
 
 
 def test_optimize_downcasts_and_categorizes():
@@ -35,7 +39,7 @@ def test_nullable_int_downcast():
 def test_high_cardinality_text_stays_object():
     df = pd.DataFrame({"id": [f"user_{i}" for i in range(100)]})
     out = fd.clean(df, optimize_memory=True)
-    assert out["id"].dtype == object
+    assert is_string(out["id"].dtype)
 
 
 def test_category_threshold_configurable():
@@ -44,7 +48,7 @@ def test_category_threshold_configurable():
     assert str(as_cat["c"].dtype) == "category"
     kept = fd.clean(df, optimize_memory=True, category_threshold=0.1,
                     drop_duplicates=False)
-    assert kept["c"].dtype == object
+    assert is_string(kept["c"].dtype)
 
 
 def test_memory_reported_smaller():

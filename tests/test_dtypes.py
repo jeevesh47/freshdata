@@ -13,6 +13,10 @@ def clean1(values, **options):
     return out["v"]
 
 
+def is_string(dtype) -> bool:
+    return dtype == object or isinstance(dtype, pd.StringDtype)
+
+
 def test_integer_strings_become_int64():
     s = clean1(["1", "2", "3"])
     assert s.dtype == "int64"
@@ -38,7 +42,7 @@ def test_currency_and_thousands_separators():
 
 def test_junk_column_stays_text():
     s = clean1(["1", "2", "x", "y"])
-    assert s.dtype == object
+    assert is_string(s.dtype)
 
 
 def test_threshold_boundary():
@@ -49,7 +53,7 @@ def test_threshold_boundary():
 
     below = [str(i) for i in range(18)] + ["junk"]  # 18/19 < 0.95 -> keep text
     s = clean1(below)
-    assert s.dtype == object
+    assert is_string(s.dtype)
 
 
 def test_coerced_values_are_reported():
@@ -72,7 +76,7 @@ def test_boolean_objects_get_boolean_dtype():
 
 
 def test_non_boolean_words_stay_text():
-    assert clean1(["yes", "no", "maybe"]).dtype == object
+    assert is_string(clean1(["yes", "no", "maybe"]).dtype)
 
 
 def test_zero_one_strings_become_numeric_not_boolean():
@@ -93,12 +97,12 @@ def test_mixed_date_formats_become_datetime():
 
 def test_words_never_attempt_datetime():
     s = clean1(["alpha", "beta", "gamma"])
-    assert s.dtype == object
+    assert is_string(s.dtype)
 
 
 def test_id_like_strings_stay_text():
     s = clean1(["A123", "B456", "C789"])
-    assert s.dtype == object
+    assert is_string(s.dtype)
 
 
 def test_compact_digit_strings_become_numeric_not_datetime():
@@ -108,7 +112,7 @@ def test_compact_digit_strings_become_numeric_not_datetime():
 
 def test_fix_dtypes_can_be_disabled():
     s = clean1(["1", "2", "3"], fix_dtypes=False)
-    assert s.dtype == object
+    assert is_string(s.dtype)
 
 
 def test_numeric_threshold_is_configurable():
