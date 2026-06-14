@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "freshdata-cleaner"
-version = "0.2.0"
+version = "0.4.0"
 description = "Fast, safe, automatic data cleaning for real-world tabular data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -44,13 +44,47 @@ dependencies = [
 ml = [
     "scikit-learn>=1.0",
 ]
+pyarrow = [
+    "pyarrow>=10",
+]
+semantic = [
+    "requests>=2.20",
+]
+cli = [
+    "pyyaml>=5.1",
+]
+cleanlab = [
+    "cleanlab>=2.0",
+    "scikit-learn>=1.0",
+]
+# Everything needed for the enterprise layer (clustering, masking, lineage, CLI),
+# excluding the heavier ML label-noise extra (`cleanlab`).
+enterprise = [
+    "pyarrow>=10",
+    "scikit-learn>=1.0",
+    "requests>=2.20",
+    "pyyaml>=5.1",
+]
+all = [
+    "pyarrow>=10",
+    "scikit-learn>=1.0",
+    "requests>=2.20",
+    "pyyaml>=5.1",
+    "cleanlab>=2.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "ruff>=0.4",
     "mypy>=1.8",
     "build>=1.0",
+    "pyarrow>=10",
+    "requests>=2.20",
+    "pyyaml>=5.1",
 ]
+
+[project.scripts]
+freshdata = "freshdata.enterprise.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/JohnnyWilson-Portfolio/freshdata"
@@ -85,15 +119,22 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["PLR2004", "SIM117"]
+# Enterprise layer: lazy optional imports (PLC0415) keep `import freshdata` cheap;
+# the orchestration functions are intentionally long (PLR0915).
+"src/freshdata/enterprise/cleaner.py" = ["PLC0415", "PLR0915", "PLW2901"]
+"src/freshdata/enterprise/interface.py" = ["PLC0415"]
+"src/freshdata/enterprise/cli.py" = ["PLC0415", "PLR0915"]
+"src/freshdata/__init__.py" = ["PLC0415"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 strict = false
 warn_unused_ignores = true
 warn_redundant_casts = true
 no_implicit_optional = true
+follow_imports = "silent"
 files = ["src/freshdata"]
 
 [[tool.mypy.overrides]]
-module = ["pandas.*", "numpy.*", "sklearn.*"]
+module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*"]
 ignore_missing_imports = true
