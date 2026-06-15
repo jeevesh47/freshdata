@@ -17,8 +17,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from .polars_stub import is_polars_frame
 from .config import LineageConfig
+from .polars_stub import is_polars_frame
 
 _OL_PRODUCER = "https://github.com/FreshCode-Org/freshdata"
 _OL_SCHEMA_URL = "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunEvent"

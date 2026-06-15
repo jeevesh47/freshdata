@@ -167,7 +167,15 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
 
     action = config.outlier_action
     if action == "auto":
-        action = "flag"
+        if share > _HEAVY_TAIL_SHARE:
+            report.add_warning(
+                f"column '{col}': {100 * share:.1f}% of values fall outside the "
+                "fences — the distribution is heavy-tailed, so values were flagged "
+                "instead of capped"
+            )
+            action = "flag"
+        else:
+            action = "cap"
     else:
         explicit = config.outlier_action not in (None, "auto")
         if explicit and action in ("cap", "remove") and share > _HEAVY_TAIL_SHARE:

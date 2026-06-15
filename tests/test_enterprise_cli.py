@@ -80,7 +80,7 @@ def test_clean_with_json_config(tmp_path):
     )
     cfg = tmp_path / "cfg.json"
     cfg.write_text(json.dumps({
-        "clean": {"strategy": "balanced"},
+        "clean": {"strategy": "auto"},
         "enterprise": {
             "enable_clustering": True,
             "clustering": {"columns": ["vendor"]},

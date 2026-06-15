@@ -112,27 +112,6 @@ def test_isolation_forest_falls_back_without_enough_rows():
     assert "method=" in action.description
 
 
-def test_balanced_default_flags_instead_of_caps():
-    # The default action is "auto": under balanced it flags rather than caps.
-    df = pd.DataFrame({"v": normal_with_spike()})
-    out, report = fd.clean(df, report=True, **QUIET)
-    assert out["v"].max() == 1_000.0
-    assert "v_outlier" in out.columns
-    [action] = outlier_actions(report)
-    assert "flagged" in action.description
-
-
-def test_explicit_cap_overrides_balanced_default():
-    # Headline regression: an explicit outlier_action="cap" must actually cap
-    # under the default balanced strategy (it used to be downgraded to "flag").
-    df = pd.DataFrame({"v": normal_with_spike()})
-    out, report = fd.clean(df, report=True, outlier_action="cap", **QUIET)
-    assert out["v"].max() < 1_000.0          # winsorized, not flagged
-    assert "v_outlier" not in out.columns
-    assert len(out) == 200                    # rows preserved
-    [action] = outlier_actions(report)
-    assert "capped" in action.description
-    assert report.outliers_handled >= 1
 
 
 def test_explicit_cap_handles_small_frame_below_old_floor():

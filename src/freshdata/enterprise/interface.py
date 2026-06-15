@@ -16,7 +16,6 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from .polars_stub import from_pandas, to_pandas
 from ..cleaner import run_pipeline
 from ..config import CleanConfig, merge_options
 from ..report import CleanReport
@@ -31,6 +30,7 @@ from .cleaner import (
 from .config import EnterpriseConfig
 from .lineage import LineageTracker
 from .metrics import QualityReport, TrustScore, compute_trust_score
+from .polars_stub import from_pandas, to_pandas
 
 
 @dataclass

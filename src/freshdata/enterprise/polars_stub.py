@@ -1,5 +1,6 @@
 from typing import Any
 
+
 def is_polars_frame(df: Any) -> bool:
     return False
 

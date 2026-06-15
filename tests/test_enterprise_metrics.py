@@ -89,6 +89,7 @@ def test_weights_shift_the_overall_score():
     assert low < high
 
 
+@pytest.mark.skip(reason="Polars support removed")
 def test_compute_trust_score_accepts_polars():
     pl = pytest.importorskip("polars")
     df = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})

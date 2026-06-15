@@ -30,8 +30,8 @@ from typing import Any
 import pandas as pd
 
 from .._util import _is_stringlike_dtype
-from .polars_stub import _polars_module, is_polars_frame, to_pandas
 from .config import ClusterConfig, MaskingRule, SemanticValidatorConfig
+from .polars_stub import _polars_module, is_polars_frame, to_pandas
 
 
 def _polars_available() -> bool:

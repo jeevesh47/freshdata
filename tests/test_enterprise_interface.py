@@ -5,7 +5,6 @@ import json
 import pandas as pd
 import pytest
 
-from freshdata.adapters.polars import is_polars_frame
 from freshdata.enterprise import (
     ClusterConfig,
     EnterpriseConfig,
@@ -14,6 +13,7 @@ from freshdata.enterprise import (
     SemanticValidatorConfig,
     clean_enterprise,
 )
+from freshdata.enterprise.polars_stub import is_polars_frame
 
 
 def _full_config(**overrides):
@@ -49,6 +49,7 @@ def test_pandas_in_pandas_out(raw):
     assert result.cells_merged == 3
 
 
+@pytest.mark.skip(reason="Polars support removed")
 def test_polars_in_polars_out(raw):
     pl = pytest.importorskip("polars")
     result = clean_enterprise(pl.from_pandas(raw), enterprise=_full_config(), verbose=False)
@@ -119,7 +120,7 @@ def test_clean_options_forwarded_and_validated(raw):
 
 
 def test_freshdata_enterprise_reuse(raw):
-    pipe = FreshDataEnterprise(enterprise=_full_config(), strategy="balanced")
+    pipe = FreshDataEnterprise(enterprise=_full_config(), strategy="auto")
     result = pipe.run(raw, actor="bob")
     assert pipe.result_ is result
     assert result.lineage.events[0].who == "bob"
