@@ -163,7 +163,7 @@ def build_parser() -> argparse.ArgumentParser:
     clean.add_argument("--in-format", choices=("csv", "parquet", "json"))
     clean.add_argument("--out-format", choices=("csv", "parquet", "json"))
     clean.add_argument("--config", help="JSON/YAML config with 'clean' and 'enterprise' keys")
-    clean.add_argument("--strategy", choices=("conservative", "auto"))
+    clean.add_argument("--strategy", choices=("conservative", "balanced", "aggressive"))
     clean.add_argument("--mask", action="append", metavar="COL:STRATEGY",
                        help="mask a column, e.g. email:hash or ssn:regex_scrub (repeatable)")
     clean.add_argument("--cluster", action="append", metavar="COL",

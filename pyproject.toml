@@ -58,6 +58,9 @@ dependencies = [
 ml = [
     "scikit-learn>=1.0",
 ]
+polars = [
+    "polars>=0.20",
+]
 pyarrow = [
     "pyarrow>=10",
 ]
@@ -74,12 +77,14 @@ cleanlab = [
 # Everything needed for the enterprise layer (clustering, masking, lineage, CLI),
 # excluding the heavier ML label-noise extra (`cleanlab`).
 enterprise = [
+    "polars>=0.20",
     "pyarrow>=10",
     "scikit-learn>=1.0",
     "requests>=2.20",
     "pyyaml>=5.1",
 ]
 all = [
+    "polars>=0.20",
     "pyarrow>=10",
     "scikit-learn>=1.0",
     "requests>=2.20",
@@ -94,6 +99,7 @@ dev = [
     "build>=1.0",
     "twine>=5.0",
     "pre-commit>=3.0",
+    "polars>=0.20",
     "pyarrow>=10",
     "requests>=2.20",
     "pyyaml>=5.1",
@@ -134,8 +140,32 @@ include = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers --cov=freshdata --cov-report=term-missing --cov-fail-under=93"
 xfail_strict = true
+markers = [
+    "large: optional large-file benchmarks (set FRESHDATA_AQI_PATH)",
+    "online: live download from manifest URLs (requires network)",
+    "tier1: anchor online datasets with full golden expectations",
+]
+filterwarnings = [
+    # Treat freshdata-emitted warnings as test failures (plan: zero-warning bar).
+    "error::DeprecationWarning:freshdata",
+    "error::UserWarning:freshdata",
+    # sklearn KNNImputer can warn on collinear numeric partners; freshdata
+    # suppresses these during imputation, but keep pytest output clean too.
+    "ignore:divide by zero encountered in matmul:RuntimeWarning:sklearn.utils.extmath",
+    "ignore:overflow encountered in matmul:RuntimeWarning:sklearn.utils.extmath",
+    "ignore:invalid value encountered in matmul:RuntimeWarning:sklearn.utils.extmath",
+]
+
+[tool.coverage.run]
+source = ["freshdata"]
+branch = false
+
+[tool.coverage.report]
+fail_under = 93
+show_missing = true
+skip_empty = true
 
 [tool.ruff]
 line-length = 99
@@ -153,6 +183,9 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["PLR2004", "SIM117"]
+"src/freshdata/engine/model_select.py" = ["PLR0915"]
+"src/freshdata/adapters/polars.py" = ["PLC0415", "PLW0603"]
+"scripts/debug_datasets.py" = ["PLR0915"]
 # Enterprise layer: lazy optional imports (PLC0415) keep `import freshdata` cheap;
 # the orchestration functions are intentionally long (PLR0915).
 "src/freshdata/enterprise/cleaner.py" = ["PLC0415", "PLR0915", "PLW2901"]

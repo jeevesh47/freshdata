@@ -3,6 +3,7 @@
 import pandas as pd
 import pytest
 
+from freshdata.adapters.polars import is_polars_frame
 from freshdata.enterprise import (
     ISO_COUNTRY_ALPHA2,
     PII_PATTERNS,
@@ -24,7 +25,6 @@ from freshdata.enterprise import (
     validate_columns,
 )
 from freshdata.enterprise.cleaner import _fingerprint_str, _ngram_str, _pick_canonical
-from freshdata.enterprise.polars_stub import is_polars_frame
 
 # =====================================================================
 # Clustering
@@ -38,7 +38,6 @@ def test_fingerprint_merges_case_punct_wordorder_variants():
     assert results[0].n_cells_merged == 3
 
 
-@pytest.mark.skip(reason="Polars support removed")
 def test_fingerprint_parity_pandas_vs_polars():
     pl = pytest.importorskip("polars")
     data = {"v": ["Acme Inc", "ACME  inc", "acme inc", "Globex"]}
@@ -48,7 +47,6 @@ def test_fingerprint_parity_pandas_vs_polars():
     assert pandas_result.mapping  # something actually merged
 
 
-@pytest.mark.skip(reason="Polars support removed")
 def test_polars_in_polars_out():
     pl = pytest.importorskip("polars")
     out, _ = merge_clusters(pl.DataFrame({"v": ["aa", "AA", "bb"]}), ["v"])
@@ -203,7 +201,6 @@ def test_mask_report_serialization():
     assert repr(report).startswith("<MaskReport")
 
 
-@pytest.mark.skip(reason="Polars support removed")
 def test_masking_polars_all_strategies():
     pl = pytest.importorskip("polars")
     frame = pl.DataFrame({"e": ["a@x.com", None], "c": ["123456", "999999"]})
@@ -298,7 +295,6 @@ def test_run_semantic_validation_from_configs():
     assert report.columns["country"].n_invalid == 1
 
 
-@pytest.mark.skip(reason="Polars support removed")
 def test_validate_columns_polars():
     pl = pytest.importorskip("polars")
     report = validate_columns(pl.DataFrame({"country": ["US", "XX"]}),

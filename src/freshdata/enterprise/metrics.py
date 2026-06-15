@@ -26,12 +26,12 @@ import pandas as pd
 from pandas.api.types import infer_dtype, is_bool_dtype, is_numeric_dtype
 
 from .._util import _is_stringlike_dtype
+from ..adapters.polars import to_pandas
 from ..config import CleanConfig
 from ..steps.dtypes import suggest_conversion
 from ..steps.outliers import _bounds
 from ..steps.strings import active_sentinels, normalize_text
 from .config import TrustScoreWeights
-from .polars_stub import to_pandas
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..report import CleanReport

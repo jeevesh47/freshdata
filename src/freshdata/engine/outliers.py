@@ -43,7 +43,8 @@ from ..steps.outliers import (
     resolve_method,
     unique_flag_name,
 )
-from .context import _DOMAIN_SENSITIVE, infer_role
+from .context import _DOMAIN_SENSITIVE, build_contexts
+from .model_select import select_outlier_action
 
 _STEP = "outliers"
 
@@ -64,14 +65,19 @@ _PROTECTED_ROLES = frozenset({"id", "target"})
 
 
 def auto_outliers(df: pd.DataFrame, config: CleanConfig,
-                  report: CleanReport) -> pd.DataFrame:
+                  report: CleanReport,
+                  contexts: dict | None = None) -> pd.DataFrame:
     """Detect and handle outliers in every eligible numeric column.
 
     Skipped entirely when ``config.outliers`` is set — the explicit simple
     step (clip/flag everything) overrides the engine.
     """
-    if config.outliers is not None or df.empty:
+    if config.outliers is not None or df.empty or config.engine_mode is None:
         return df
+    if contexts is None:
+        contexts = build_contexts(df, config)
+    mode = config.engine_mode
+    assert mode in ("balanced", "aggressive")
     rows_before = len(df)
     for col in list(df.columns):
         s = df[col]
@@ -80,7 +86,8 @@ def auto_outliers(df: pd.DataFrame, config: CleanConfig,
         nonnull = s.dropna()
         if len(nonnull) < _MIN_NON_NULL:
             continue
-        df = _handle_column(df, col, config, report)
+        ctx = contexts[col]
+        df = _handle_column(df, col, config, report, ctx=ctx, mode=mode)
     removed = rows_before - len(df)
     if removed and removed / rows_before > _REMOVAL_WARN_SHARE:
         report.add_warning(
@@ -131,7 +138,7 @@ def _isolation_detect(s: pd.Series, config: CleanConfig):
 
 
 def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
-                   report: CleanReport) -> pd.DataFrame:
+                   report: CleanReport, *, ctx, mode: str) -> pd.DataFrame:
     s = df[col]
     detected = _detect(s, config)
     if detected is None:
@@ -143,21 +150,24 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
     share = n / int(s.notna().sum())
     detail = f"{n} outlier(s), {100 * share:.1f}% of values ({label})"
 
-    role = infer_role(str(col), s, config)
+    action, choice = select_outlier_action(ctx, config, mode=mode, share=share)  # type: ignore[arg-type]
+    model_id = choice.model_id
+
     preserve_reason: str | None = None
-    if role in _PROTECTED_ROLES:
-        preserve_reason = f"{role} column — its values must not be altered"
+    if action is None:
+        preserve_reason = choice.rationale
+    elif ctx.role in _PROTECTED_ROLES:
+        preserve_reason = f"{ctx.role} column — its values must not be altered"
     elif str(col) in config.preserve_columns:
         preserve_reason = "explicitly listed in preserve_columns"
     elif _domain_sensitive(str(col)):
-        preserve_reason = ("domain-sensitive column (fraud/anomaly/risk-like "
-                          "name) where extreme values are usually the signal")
-    elif config.outlier_action is None:
-        preserve_reason = "outlier_action=None requested (detect and report only)"
+        preserve_reason = ("domain-sensitive column where extreme values are "
+                          "usually the signal")
 
     if preserve_reason is not None:
         report.add(_STEP, f"preserved {detail}", column=str(col), count=0,
-                   rationale=preserve_reason, risk="low", confidence=0.9)
+                   rationale=preserve_reason, risk="low", confidence=0.9,
+                   model_id=model_id)
         if _domain_sensitive(str(col)):
             report.add_recommendation(
                 f"column '{col}' has {n} extreme value(s) that were deliberately "
@@ -165,26 +175,14 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
             )
         return df
 
-    action = config.outlier_action
-    if action == "auto":
-        if share > _HEAVY_TAIL_SHARE:
-            report.add_warning(
-                f"column '{col}': {100 * share:.1f}% of values fall outside the "
-                "fences — the distribution is heavy-tailed, so values were flagged "
-                "instead of capped"
-            )
-            action = "flag"
-        else:
-            action = "cap"
-    else:
-        explicit = config.outlier_action not in (None, "auto")
-        if explicit and action in ("cap", "remove") and share > _HEAVY_TAIL_SHARE:
-            report.add_warning(
-                f"column '{col}': outlier_action={config.outlier_action!r} applied to "
-                f"{n} value(s) ({100 * share:.0f}% of the column); >15% outlying often "
-                "means a heavy-tailed distribution where the extremes are real — review "
-                "whether this is appropriate"
-            )
+    explicit = config.outlier_action not in (None, "auto")
+    if explicit and action in ("cap", "remove") and share > _HEAVY_TAIL_SHARE:
+        report.add_warning(
+            f"column '{col}': outlier_action={config.outlier_action!r} applied to "
+            f"{n} value(s) ({100 * share:.0f}% of the column); >15% outlying often "
+            "means a heavy-tailed distribution where the extremes are real — review "
+            "whether this is appropriate"
+        )
 
     confidence = 0.85 if share <= 0.02 else 0.7 if share <= 0.10 else 0.5
     risk = "low" if share <= 0.02 else "medium"
@@ -195,7 +193,7 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
                    column=str(col), count=n,
                    rationale="winsorizing keeps the rows but tames extreme "
                              "magnitudes; safer than deletion",
-                   risk=risk, confidence=confidence)
+                   risk=risk, confidence=confidence, model_id=model_id)
         report.outliers_handled += n
     elif action == "remove":
         df = df.loc[~mask.fillna(False)]
@@ -204,16 +202,23 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
                    rationale='outlier_action="remove" requested; rows outside '
                              f"[{lo:g}, {hi:g}] were dropped",
                    risk="medium" if share <= 0.02 else "high",
-                   confidence=confidence)
+                   confidence=confidence, model_id=model_id)
         report.outliers_handled += n
     else:  # flag
-        flag = unique_flag_name(df, f"{col}_outlier")
+        base = f"{col}_outlier"
+        if base in df.columns and df[base].dtype == bool:
+            new_mask = mask.fillna(False).astype(bool)
+            if df[base].equals(new_mask):
+                return df
+            flag = base
+        else:
+            flag = unique_flag_name(df, base)
         df[flag] = mask.fillna(False).astype(bool)
         report.add(_STEP, f"flagged {detail} in new column {flag!r}",
                    column=str(col), count=n,
                    rationale="flagging records the detection without altering "
                              "any value",
-                   risk="low", confidence=confidence)
+                   risk="low", confidence=confidence, model_id=model_id)
         report.outliers_handled += n
     return df
 

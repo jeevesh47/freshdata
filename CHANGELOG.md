@@ -4,24 +4,26 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
-
 ## [Unreleased]
 
 ### Fixed
 - **Outliers: an explicit `outlier_action` is now honored.** Under the default
-  `strategy="auto"`, explicit `"cap"` / `"remove"` / `"flag"` are now applied to
-  every eligible numeric column.
+  `strategy="balanced"`, `outlier_action="cap"` (and `"remove"`) was silently
+  downgraded to `"flag"`, so capping never happened despite being the documented
+  default — extreme values were returned unchanged. Explicit
+  `"cap"` / `"remove"` / `"flag"` are now applied to every eligible numeric
+  column.
 - **Small frames no longer skip outlier handling.** The engine's minimum
   non-null threshold dropped from 10 to 4 (the floor at which IQR / z-score
   fences are defined), so outliers in small DataFrames are detected and handled.
 
 ### Changed
-- The default `outlier_action` is now `"auto"` (context-aware: flags by default,
-  flags heavy-tailed >15%-outlying columns). An explicit `cap` / `remove` on a
+- The default `outlier_action` is now `"auto"` (context-aware: flags under
+  `balanced`, caps under `aggressive`, flags heavy-tailed >15%-outlying
+  columns). The default *behavior* under `balanced` is unchanged (still flags);
+  only the explicit-directive path changed. An explicit `cap` / `remove` on a
   heavy-tailed column now caps / removes and emits a warning instead of silently
   flagging.
-
-
 
 ## [1.0.0] - 2026-06-14
 
@@ -33,12 +35,11 @@ Versioning** — breaking changes will require a 2.0.
 
 ### Notes
 - No behavioral changes versus 0.5.0. The stable public surface is
-  `fd.clean`, `fd.profile`, `fd.Cleaner`,
+  `fd.clean`, `fd.profile`, `fd.suggest_plan`, `fd.compare_plans`,
+  `fd.compare_clean`, `fd.explain_clean`, `fd.infer_roles`, `fd.Cleaner`,
   `fd.CleanConfig`, `fd.CleanReport`/`fd.Action`, `fd.Profile`, and the lazily
   imported `freshdata.enterprise` layer.
 - Install: `pip install freshdata-cleaner`; import: `import freshdata as fd`.
-
-
 
 ## [0.5.0] - 2026-06-14
 
@@ -59,20 +60,20 @@ Versioning** — breaking changes will require a 2.0.
 - Expanded PyPI keywords and classifiers and a `Documentation` project URL for
   better search ranking and discoverability.
 
-
-
 ## [0.4.0] - 2026-06-14
 
 ### Added — enterprise layer (`freshdata.enterprise`)
 - **`clean_enterprise(df)`** and the reusable **`FreshDataEnterprise`** pipeline:
   core cleaning → fuzzy value clustering → semantic validation → PII masking, returning
   an `EnterpriseResult` (cleaned frame + trust scores + quality report + lineage). Accepts
-  and returns **pandas**.
+  and returns **pandas *or* polars** — Polars-native on the hot path when installed, with a
+  vectorized pandas fallback otherwise.
 - **Data Trust Score** (`compute_trust_score`, `TrustScore`): a 0–100 score from
   completeness, validity, uniqueness, and structural consistency, with per-column detail
   and a JSON/Markdown **`QualityReport`** (`build_quality_report`).
 - **Value clustering** (`merge_clusters`, `cluster_column`): OpenRefine-style fingerprint
-  key-collision and n-gram merging of variants/typos, using pandas, with `most_frequent` / `longest` / `shortest` / `first`
+  key-collision and n-gram merging of variants/typos, built from native Polars string
+  expressions (pandas fallback), with `most_frequent` / `longest` / `shortest` / `first`
   canonicalisation.
 - **PII masking** (`mask_dataframe`, `MaskingRule`): salted SHA-256 `hash`, `redact`,
   `partial`, `regex_scrub` (built-in email/phone/SSN/credit-card/IP/IBAN patterns), and
@@ -89,9 +90,49 @@ Versioning** — breaking changes will require a 2.0.
   emitting JSON quality + OpenLineage reports, with a non-zero exit code on trust-gate
   failure — suitable as an Airflow/Prefect batch step. Config via JSON/YAML files.
 - New optional-dependency extras: `pyarrow`, `semantic`, `cli`, `cleanlab`, aggregate
-  `enterprise`, and `all`. PyArrow/requests/cleanlab are imported lazily, so plain
+  `enterprise`, and `all`. Polars/PyArrow/requests/cleanlab are imported lazily, so plain
   `import freshdata` stays dependency-light.
 
+## [0.3.0] - 2026-06-12
+
+### Changed (breaking)
+- **Default strategy is now `"balanced"`** — accuracy-first cleaning that
+  preserves high-missing columns, flags outliers instead of capping, and
+  skips KNN imputation. Use `strategy="aggressive"` for v0.2-style scrubbing
+  (KNN, column drops, winsorization).
+- `strategy="auto"` is deprecated (alias for `"aggressive"`; emits
+  `DeprecationWarning` once per process).
+
+### Added
+- `fd.suggest_plan(df)` and `fd.compare_plans(df)` — dry-run previews of
+  engine model choices per column, with ranked alternatives.
+- Model selection router (`engine/model_select.py`) scoring imputation and
+  outlier actions; `Action.model_id` records the chosen model.
+- Expanded target/label heuristics (`aqi`, `*_bucket`, `score`, …) and
+  domain-sensitive outlier preservation (pollutants, prices, latency, …).
+- `profile(df, include_plan=True)` attaches a `CleanPlan` at `profile.plan`.
+- `src/freshdata/py.typed` marker for PEP 561 typing support.
+- Multi-dataset regression suite (`tests/fixtures/`, `test_regressions.py`,
+  `test_realworld.py`, `test_model_select.py`, `test_plan.py`).
+- Golden report snapshots (`tests/fixtures/golden/`, `pytest --update-golden`).
+- Benchmark tests (`test_benchmark.py`) and `benchmarks/bench.py --fixtures`.
+- CI enforces ≥93% coverage and treats `freshdata` warnings as errors.
+- README migration guide for 0.2 → 0.3.
+
+### Fixed
+- KNN imputation: collinearity pruning, row-count gate (10k), warning
+  suppression, index alignment on fill.
+- Re-cleaning idempotency for outlier flag columns.
+
+### Added (0.3.1 validation pass)
+- `fd.compare_clean()` — side-by-side quality + efficiency metrics per strategy.
+- Four new scenario fixtures: `large_panel` (3k rows), `duplicate_heavy`,
+  `locale_numbers`, `mixed_roles`.
+- Performance baselines (`tests/fixtures/perf/baselines.json`) with 25% regression gate.
+- `@pytest.mark.large` optional full AQI.csv benchmark (`FRESHDATA_AQI_PATH`).
+- Engine perf: one-pass `EngineCache` (contexts + correlation matrix), lazy
+  informative-missing checks, sampled skew on large columns.
+- `benchmarks/bench.py --compare` table output.
 
 ## [0.2.0] - 2026-06-12
 
