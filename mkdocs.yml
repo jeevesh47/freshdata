@@ -110,4 +110,7 @@ nav:
   - Benchmarks: benchmarks.md
   - API Reference: api-reference.md
   - FAQ: faq.md
-  - Contributing: contributing.md
+  - Contributing:
+      - Overview: contributing.md
+      - First PR guide: community/first-pr.md
+      - Project labels: community/labels.md
