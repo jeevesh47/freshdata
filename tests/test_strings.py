@@ -60,6 +60,16 @@ def test_empty_string_becomes_missing():
     assert out["v"].isna().sum() == 2
 
 
+def test_empty_and_blank_values_are_reported_in_clean_report():
+    df = pd.DataFrame({"v": ["", " ", "N/A", "x"]})
+    _, report = fd.clean(
+        df, return_report=True, drop_empty_rows=False, drop_duplicates=False
+    )
+    actions = [a for a in report if a.step == "normalize_sentinels"]
+    assert len(actions) == 1
+    assert actions[0].count == 3
+
+
 def test_unhashable_values_pass_through():
     df = pd.DataFrame({"v": [[1, 2], [3], None], "w": ["a", "b", "c"]})
     out = fd.clean(df)
