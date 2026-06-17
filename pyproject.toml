@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [
-    { name = "Johnny Wilson Dougherty", email = "jyothiswaroop2803@gmail.com" },
+    { name = "Johnny Wilson Dougherty", email = "johnnydougherty09@gmail.com" },
 ]
 keywords = [
     "data-cleaning",
