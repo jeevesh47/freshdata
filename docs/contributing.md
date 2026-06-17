@@ -10,6 +10,9 @@ keywords: contribute freshdata, open source data cleaning, freshdata development
 
 Contributions are welcome — bug reports, fixes, docs, and features. Please also
 read the [Code of Conduct](https://github.com/FreshCode-Org/freshdata/blob/main/CODE_OF_CONDUCT.md).
+If you are choosing a first task, start with the
+[First PR guide](community/first-pr.md) and the
+[Project labels](community/labels.md).
 
 ## Development setup
 
