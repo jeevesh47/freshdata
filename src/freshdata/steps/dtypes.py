@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 import warnings
+from collections.abc import Callable
 
 import pandas as pd
 from pandas.api.types import infer_dtype
@@ -30,11 +31,47 @@ _TRUE_WORDS = frozenset({"true", "t", "yes", "y"})
 _FALSE_WORDS = frozenset({"false", "f", "no", "n"})
 _BOOL_WORDS = _TRUE_WORDS | _FALSE_WORDS
 
-# Numbers dressed up as text: optional sign/currency, comma groups, decimals.
-_FORMATTED_NUMBER = re.compile(
-    r"\s*[+-]?\s*[$€£₹]?\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\s*[$€£₹]?\s*"
-)
-_NUMERIC_NOISE = re.compile(r"[,\s$€£₹]")
+# Currency symbols stripped from numbers dressed up as text.
+_CURRENCY = "$€£₹"
+
+# A zero-padded number ("007", "02115") — a leading zero followed by another
+# digit. These are almost always identifiers (ZIP, phone, padded keys) where
+# coercion to int silently destroys the padding, so we keep them as text.
+_LEADING_ZERO = re.compile(r"^\s*[+-]?0\d")
+
+
+def _number_format(
+    config: CleanConfig,
+) -> tuple[re.Pattern, re.Pattern, Callable[[pd.Series], pd.Series]]:
+    """Build (formatted-number matcher, noise detector, cleanup) for the locale.
+
+    The defaults (``thousands=","``, ``decimal="."``) reproduce the original
+    US-style ``"$1,234.56"`` behavior exactly; other locales (e.g. European
+    ``"1.234,56"``) are supported by setting the separators on the config.
+    """
+    tho = re.escape(config.thousands)
+    dec = re.escape(config.decimal)
+    formatted = re.compile(
+        rf"\s*[+-]?\s*[{_CURRENCY}]?\s*"
+        rf"(?:\d{{1,3}}(?:{tho}\d{{3}})+|\d+)(?:{dec}\d+)?\s*[{_CURRENCY}]?\s*"
+    )
+    # Characters that hint a value is a *formatted* number worth a second pass.
+    noise_chars = _CURRENCY + config.thousands + (config.decimal if config.decimal != "." else "")
+    noise = re.compile(rf"[{re.escape(noise_chars)}]")
+    strip = re.compile(rf"[\s{_CURRENCY}{tho}]")
+
+    def cleanup(s: pd.Series) -> pd.Series:
+        out = s.str.replace(strip, "", regex=True)
+        if config.decimal != ".":
+            out = out.str.replace(config.decimal, ".", regex=False)
+        return out
+
+    return formatted, noise, cleanup
+
+
+def _has_leading_zero_ids(sample: pd.Series) -> bool:
+    """True if the sample contains zero-padded numeric strings (ZIP/IDs)."""
+    return any(isinstance(v, str) and _LEADING_ZERO.match(v) for v in sample)
 
 _DATEISH = re.compile(
     r"\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}"  # 2021-01-05, 1/5/21, 05.01.2021
@@ -101,6 +138,13 @@ def _try_numeric(
     n = len(nonnull)
     sample = sample_series(nonnull, config.sample_size, config.random_state)
 
+    # Zero-padded numbers ("007", "02115") are identifiers, not quantities —
+    # coercing them to int silently drops the padding, so keep them as text.
+    if config.preserve_leading_zeros and _has_leading_zero_ids(sample):
+        return None, 0
+
+    formatted_re, noise_re, cleanup = _number_format(config)
+
     # Cheap rejection on the sample before paying for a full-column parse.
     sample_parsed = _to_numeric_or_none(sample)
     if sample_parsed is None:
@@ -114,15 +158,15 @@ def _try_numeric(
     if parsed is None:
         # Second chance: values like "$1,234.56". Only worth attempting if the
         # sample actually contains separator/currency characters.
-        has_noise = sample.astype("string").str.contains(r"[,$€£₹]", regex=True, na=False)
+        has_noise = sample.astype("string").str.contains(noise_re, regex=True, na=False)
         if not bool(has_noise.any()):
             return None, 0
-        matches = s.str.fullmatch(_FORMATTED_NUMBER).eq(True)
+        matches = s.str.fullmatch(formatted_re).eq(True)
         if matches.dtype != bool:  # BooleanDtype (string input) keeps NA through eq()
             matches = matches.fillna(False).astype(bool)
         if not matches.any():
             return None, 0
-        cleaned = s.str.replace(_NUMERIC_NOISE, "", regex=True).where(matches, s)
+        cleaned = cleanup(s).where(matches, s)
         candidate = _to_numeric_or_none(cleaned)
         if candidate is None or candidate.notna().sum() / n < threshold:
             return None, 0
@@ -141,8 +185,38 @@ def _looks_dateish(sample: pd.Series) -> bool:
     return hits / len(values) >= 0.6
 
 
-def _parse_datetime(s: pd.Series, mixed_formats: bool) -> pd.Series | None:
-    kwargs = {"errors": "coerce"}
+_DATE_FIELDS = re.compile(r"^\s*(\d{1,4})[-/.](\d{1,2})[-/.](\d{1,4})")
+
+
+def _resolve_dayfirst(values: pd.Series, config: CleanConfig) -> bool:
+    """Resolve the day/month order for ambiguous numeric dates.
+
+    Explicit ``True``/``False`` are honored. Under ``"auto"`` we look for
+    disambiguating values — a first field > 12 means the day leads, a second
+    field > 12 means the month leads — and vote. With no evidence (every value
+    ambiguous) we fall back to month-first, matching pandas' default.
+    """
+    if config.dayfirst is not True and config.dayfirst is not False:
+        day_votes = month_votes = 0
+        for v in values:
+            if not isinstance(v, str):
+                continue
+            m = _DATE_FIELDS.match(v)
+            if not m:
+                continue
+            first, second = int(m.group(1)), int(m.group(2))
+            if first > 12 and first <= 31:
+                day_votes += 1
+            elif second > 12 and second <= 31:
+                month_votes += 1
+        return day_votes > month_votes
+    return config.dayfirst
+
+
+def _parse_datetime(
+    s: pd.Series, mixed_formats: bool, dayfirst: bool = False
+) -> pd.Series | None:
+    kwargs: dict = {"errors": "coerce", "dayfirst": dayfirst}
     if mixed_formats:
         kwargs["format"] = "mixed"
     with warnings.catch_warnings():
@@ -167,20 +241,21 @@ def _try_datetime(
         sample = sample_series(nonnull, config.sample_size, config.random_state)
         if not _looks_dateish(sample):
             return None, 0
+        dayfirst = _resolve_dayfirst(sample, config)
         parsed = None
-        plain_sample = _parse_datetime(sample, mixed_formats=False)
+        plain_sample = _parse_datetime(sample, mixed_formats=False, dayfirst=dayfirst)
         if plain_sample is not None and plain_sample.notna().mean() >= threshold * 0.8:
-            parsed = _parse_datetime(s, mixed_formats=False)
+            parsed = _parse_datetime(s, mixed_formats=False, dayfirst=dayfirst)
         if parsed is None and PANDAS_MAJOR >= 2:
-            mixed_sample = _parse_datetime(sample, mixed_formats=True)
+            mixed_sample = _parse_datetime(sample, mixed_formats=True, dayfirst=dayfirst)
             if mixed_sample is not None and mixed_sample.notna().mean() >= threshold * 0.8:
-                parsed = _parse_datetime(s, mixed_formats=True)
+                parsed = _parse_datetime(s, mixed_formats=True, dayfirst=dayfirst)
         if parsed is None:
             return None, 0
         if parsed.notna().sum() / n < threshold and PANDAS_MAJOR >= 2:
             # Single-format inference came up short; mixed-format parsing is
             # slower but handles heterogeneous date styles in one column.
-            mixed = _parse_datetime(s, mixed_formats=True)
+            mixed = _parse_datetime(s, mixed_formats=True, dayfirst=dayfirst)
             if mixed is not None and mixed.notna().sum() > parsed.notna().sum():
                 parsed = mixed
 

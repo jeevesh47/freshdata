@@ -1,8 +1,8 @@
 ﻿"""Structured record of everything :func:`freshdata.clean` did.
 
 Trust is the core feature of an auto-cleaner: every transformation is recorded
-as an :class:`Action` 鈥?with a rationale, a risk level, and a confidence score
-when it came from the decision engine 鈥?so users can audit exactly what
+as an :class:`Action` — with a rationale, a risk level, and a confidence score
+when it came from the decision engine — so users can audit exactly what
 changed, how much, and why. Columns that were deliberately *not* touched get
 an action too, so remaining NaNs are always explained.
 """
@@ -38,7 +38,7 @@ class Action:
     rationale:
         Why the decision engine chose this action ("" for non-engine steps).
     risk:
-        "low", "medium", or "high" 鈥?how likely the action is to need review.
+        "low", "medium", or "high" — how likely the action is to need review.
     confidence:
         Engine confidence in the decision, in [0, 1] (1.0 for non-engine steps,
         which are deterministic representation repairs).
@@ -229,7 +229,7 @@ class CleanReport:
             lines.append(f"  actions ({len(self.actions)}):")
             lines.extend(f"    - {a}" for a in self.actions)
         else:
-            lines.append("  actions: none 鈥?data was already clean")
+            lines.append("  actions: none — data was already clean")
         if self.warnings:
             lines.append(f"  warnings ({len(self.warnings)}):")
             lines.extend(f"    ! {w}" for w in self.warnings)

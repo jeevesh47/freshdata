@@ -13,6 +13,7 @@ requests, or cleanlab import them lazily so ``import freshdata`` stays cheap.
 from __future__ import annotations
 
 import dataclasses
+import secrets
 from dataclasses import dataclass, field
 
 _MASK_STRATEGIES = ("hash", "redact", "partial", "regex_scrub", "drop")
@@ -36,8 +37,12 @@ class MaskingRule:
     Strategies
     ----------
     ``hash``
-        Salted SHA-256, hex-truncated to ``hash_length`` — deterministic
-        pseudonymisation (equal inputs map to equal tokens).
+        HMAC-SHA256 keyed by ``salt``, hex-truncated to ``hash_length``. Equal
+        inputs map to equal tokens *for a given salt*. If ``salt`` is left
+        empty a cryptographically random one is generated per rule, so the
+        default is non-reversible (an empty salt would otherwise let an
+        attacker rainbow-table low-entropy PII like emails or SSNs). Set an
+        explicit ``salt`` when you need stable tokens across runs (e.g. joins).
     ``redact``
         Replace every non-null value with ``placeholder``.
     ``partial``
@@ -82,6 +87,10 @@ class MaskingRule:
         object.__setattr__(self, "columns", tuple(self.columns))
         object.__setattr__(self, "scrub_patterns", tuple(self.scrub_patterns))
         object.__setattr__(self, "regexes", tuple(self.regexes))
+        # Secure default: an empty salt on a hash rule would make low-entropy
+        # PII trivially reversible, so generate a random per-rule salt instead.
+        if self.strategy == "hash" and not self.salt:
+            object.__setattr__(self, "salt", secrets.token_hex(16))
 
 
 @dataclass(frozen=True)

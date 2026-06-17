@@ -16,7 +16,17 @@ from pandas.api.types import (
 
 from .._util import format_bytes, stringlike_columns
 from ..config import CleanConfig
+from ..engine.context import _ID_NAME
 from ..report import CleanReport
+
+
+def _is_identifier_column(col: object, config: CleanConfig) -> bool:
+    """Identifiers/keys must not be narrow-downcast — overflow would corrupt
+    them (e.g. an int8 key wraps at 128). Detected by explicit config or name."""
+    label = str(col)
+    if label in config.id_columns or label == config.target_column:
+        return True
+    return bool(_ID_NAME.search(label.casefold()))
 
 _NULLABLE_INT_LADDER: list[tuple[str, int, int]] = [
     ("Int8", -(2**7), 2**7 - 1),
@@ -54,6 +64,8 @@ def optimize_memory(df: pd.DataFrame, config: CleanConfig,
         s = df[col]
         if not pd.api.types.is_numeric_dtype(s):
             continue
+        if _is_identifier_column(col, config) and not is_float_dtype(s):
+            continue  # never narrow an integer key/id — overflow corrupts it
         smaller = _downcast_numeric(s)
         if smaller.dtype != s.dtype:
             downcast_saved += int(s.memory_usage(deep=True) - smaller.memory_usage(deep=True))

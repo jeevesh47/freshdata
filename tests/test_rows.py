@@ -66,8 +66,19 @@ def test_reset_index_opt_in():
 
 
 def test_typed_duplicates_found_after_conversion():
-    # "01" and "1" are different strings but the same number; duplicates are
+    # "1.0" and "1" are different strings but the same number; duplicates are
     # detected after dtype fixing, so these rows collapse.
-    df = pd.DataFrame({"v": ["01", "1", "2"]})
+    df = pd.DataFrame({"v": ["1.0", "1", "2"]})
     out = fd.clean(df)
     assert out["v"].tolist() == [1, 2]
+
+
+def test_leading_zero_ids_are_preserved_not_coerced():
+    # "01"/"007"/ZIP codes are identifiers — coercing them to int would destroy
+    # the padding, so they are kept as text (preserve_leading_zeros, default).
+    df = pd.DataFrame({"v": ["01", "007", "02115"]})
+    out = fd.clean(df, drop_duplicates=False)
+    assert out["v"].tolist() == ["01", "007", "02115"]
+    # opting out restores numeric coercion
+    out2 = fd.clean(df, drop_duplicates=False, preserve_leading_zeros=False)
+    assert out2["v"].tolist() == [1, 7, 2115]

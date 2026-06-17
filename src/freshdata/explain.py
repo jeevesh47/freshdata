@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 
+from .adapters.polars import to_pandas
 from .cleaner import run_pipeline
 from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
@@ -154,6 +155,7 @@ def explain_clean(
 ) -> ExplainReport:
     """Run clean() and return a structured before/after explanation."""
     cfg = merge_options(config, strategy=strategy, **options)
+    df = to_pandas(df)  # accept polars frames like the other public entry points
     before_stats = _column_stats(df)
     contexts = build_contexts(df, cfg)
     cleaned, report = run_pipeline(df, cfg)

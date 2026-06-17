@@ -34,6 +34,7 @@ from __future__ import annotations
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
+from .._util import add_column
 from ..config import CleanConfig
 from ..report import CleanReport
 from ..steps.outliers import (
@@ -213,7 +214,7 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
             flag = base
         else:
             flag = unique_flag_name(df, base)
-        df[flag] = mask.fillna(False).astype(bool)
+        add_column(df, flag, mask.fillna(False).astype(bool))
         report.add(_STEP, f"flagged {detail} in new column {flag!r}",
                    column=str(col), count=n,
                    rationale="flagging records the detection without altering "

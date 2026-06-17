@@ -72,6 +72,21 @@ class CleanConfig:
     numeric_threshold: float = 0.95
     #: Fraction of non-missing values that must parse for a datetime conversion.
     datetime_threshold: float = 0.95
+    #: Keep zero-padded numeric strings (ZIP codes, zero-padded IDs, phone
+    #: codes) as text instead of silently coercing "007" -> 7. Set False to
+    #: convert them to numbers anyway.
+    preserve_leading_zeros: bool = True
+    #: Day/month order for ambiguous numeric dates. "auto" (default) infers the
+    #: order from disambiguating values (a field > 12) and falls back to
+    #: month-first when a column is genuinely ambiguous. True forces day-first
+    #: (DD/MM/YYYY), False forces month-first (MM/DD/YYYY).
+    dayfirst: bool | str = "auto"
+    #: Decimal separator used when parsing numbers from text (e.g. "," for
+    #: many European locales). Must be a single character and differ from
+    #: ``thousands``.
+    decimal: str = "."
+    #: Thousands/grouping separator stripped when parsing numbers from text.
+    thousands: str = ","
     #: Drop exact duplicate rows (keeps the first occurrence).
     drop_duplicates: bool = True
     #: Restrict duplicate detection to these columns (post-rename names).
@@ -175,11 +190,19 @@ class CleanConfig:
                 f"duplicate_keep must be one of {_DUPLICATE_KEEP_CHOICES}, "
                 f"got {self.duplicate_keep!r}"
             )
-        for name in ("advanced_imputation", "missing_indicators"):
+        for name in ("advanced_imputation", "missing_indicators", "dayfirst"):
             if getattr(self, name) not in _TRISTATE_CHOICES:
                 raise ValueError(
                     f"{name} must be True, False, or 'auto', got {getattr(self, name)!r}"
                 )
+        for name in ("decimal", "thousands"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or len(value) != 1:
+                raise ValueError(f"{name} must be a single character, got {value!r}")
+        if self.decimal == self.thousands:
+            raise ValueError(
+                f"decimal and thousands separators must differ, both are {self.decimal!r}"
+            )
         for name in ("missing_threshold_low", "missing_threshold_medium",
                      "missing_threshold_high", "duplicate_threshold"):
             value = getattr(self, name)

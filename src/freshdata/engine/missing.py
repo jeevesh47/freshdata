@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
+from .._util import add_column
 from ..config import CleanConfig
 from ..report import CleanReport
 from ..steps.missing import _mode_value
@@ -438,7 +439,7 @@ def _maybe_indicator(df: pd.DataFrame, col: object, ctx: ColumnContext,
     name = f"{col}_was_missing"
     if name in df.columns:  # idempotent re-cleaning
         return df
-    df[name] = df[col].isna()
+    add_column(df, name, df[col].isna())
     report.add(_STEP, f"added missing indicator column {name!r}",
                column=str(col), count=ctx.n_missing,
                rationale="missingness itself may be informative; the indicator "
@@ -466,7 +467,10 @@ def _knn_fill(
         from sklearn.impute import KNNImputer  # noqa: PLC0415 — optional dependency
     except ImportError:
         return None
-    if config.advanced_imputation == "auto" and len(df) > _KNN_MAX_ROWS:
+    # Always honor the row limit: KNN is ~O(n²); above the cap we fall back to
+    # median. rank_missing_models reports the same gate, so the report and the
+    # actual behavior stay consistent even when advanced_imputation=True.
+    if len(df) > _KNN_MAX_ROWS:
         return None
     others = [
         c for c in df.columns

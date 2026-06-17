@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import abc
 import hashlib
+import hmac
 import re
 from collections import defaultdict
 from collections.abc import Callable, Mapping, Sequence
@@ -338,8 +339,11 @@ PII_PATTERNS: dict[str, str] = {
 
 
 def _hash_value(value: Any, salt: str, length: int) -> str:
-    digest = hashlib.sha256((salt + str(value)).encode("utf-8")).hexdigest()
-    return digest[:length]
+    # HMAC keyed by the salt — avoids the salt/value boundary ambiguity of a
+    # plain ``sha256(salt + value)`` concatenation and is non-reversible
+    # without the (per-rule random by default) salt.
+    digest = hmac.new(salt.encode("utf-8"), str(value).encode("utf-8"), hashlib.sha256)
+    return digest.hexdigest()[:length]
 
 
 def _partial_value(value: Any, visible: int, placeholder: str) -> str:

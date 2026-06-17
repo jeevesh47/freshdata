@@ -2,7 +2,24 @@
 
 from __future__ import annotations
 
+import warnings
+
 import pandas as pd
+from pandas.errors import PerformanceWarning
+
+
+def add_column(df: pd.DataFrame, name: object, values: object) -> None:
+    """Insert a new column in place, suppressing pandas' fragmentation notice.
+
+    The engine deliberately appends per-column indicator/flag columns in a
+    loop; on wide frames this trips ``PerformanceWarning: DataFrame is highly
+    fragmented``. The advice (concat all at once) does not apply here because
+    later columns can depend on rows removed by earlier ones, so we accept the
+    fragmentation and quiet the noise rather than misreport it to users.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", PerformanceWarning)
+        df[name] = values
 
 #: Major version of the installed pandas, for the few places behavior differs.
 PANDAS_MAJOR: int = int(pd.__version__.split(".")[0])
