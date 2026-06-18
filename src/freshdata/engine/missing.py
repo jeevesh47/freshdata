@@ -38,9 +38,9 @@ from .._util import add_column
 from ..config import CleanConfig
 from ..report import CleanReport
 from ..steps.missing import _mode_value
-from ..steps.outliers import detection_bounds
 from .context import MIN_ROWS_FOR_ENGINE, ColumnContext, build_contexts
 from .model_select import rank_missing_models
+from .utils import _has_outliers
 
 #: |skewness| below which mean imputation is acceptable.
 _MEAN_OK_SKEW = 0.5
@@ -316,13 +316,6 @@ def _handle_extreme(df: pd.DataFrame, col: object, ctx: ColumnContext,
 
 
 # -- shared mechanics ---------------------------------------------------------
-
-def _has_outliers(s: pd.Series) -> bool:
-    bounds = detection_bounds(s, "iqr", 1.5)
-    if bounds is None:
-        return False
-    return bool(((s < bounds[0]) | (s > bounds[1])).any())
-
 
 def _fill_datetime(df: pd.DataFrame, col: object, ctx: ColumnContext,
                    report: CleanReport, risk: str = "low",
