@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- P1 repair-layer primitives for validator bridges, schema drift
+  harmonization, duplicate/replay defense, and human review queues.
+- Top-level bridge adapters: `freshdata.from_gx`, `freshdata.from_dbt_failures`,
+  `freshdata.from_pandera_errors`, `freshdata.emit_gx_expectations`, and
+  `freshdata.emit_dbt_tests`.
+
 ### Fixed
 - **Outliers: an explicit `outlier_action` is now honored.** Under the default
   `strategy="balanced"`, `outlier_action="cap"` (and `"remove"`) was silently
