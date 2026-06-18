@@ -9,8 +9,8 @@ import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
 from ..config import CleanConfig
-from ..steps.outliers import detection_bounds
 from .context import MIN_ROWS_FOR_ENGINE, ColumnContext
+from .utils import _has_outliers
 
 EngineMode = Literal["balanced", "aggressive"]
 _MEAN_OK_SKEW = 0.5
@@ -50,12 +50,12 @@ def _band(ratio: float, config: CleanConfig) -> str:
     return "extreme"
 
 
-def _has_outliers(s: pd.Series) -> bool:
+'''def _has_outliers(s: pd.Series) -> bool:
     bounds = detection_bounds(s, "iqr", 1.5)
     if bounds is None:
         return False
     return bool(((s < bounds[0]) | (s > bounds[1])).any())
-
+'''
 
 def _partner_info(
     df: pd.DataFrame,
