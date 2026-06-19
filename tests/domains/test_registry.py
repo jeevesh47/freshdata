@@ -97,6 +97,6 @@ def test_broken_entry_point_is_skipped(monkeypatch):
         def load(self):
             raise RuntimeError("boom")
 
-    monkeypatch.setattr(md, "entry_points", lambda **_: [_BadEP()])
+    monkeypatch.setattr(registry_mod, "entry_points", lambda **_: [_BadEP()])
     # A plugin that fails to load is swallowed, not propagated.
     assert registry_mod._entry_point_classes() == {}

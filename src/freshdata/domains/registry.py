@@ -48,7 +48,7 @@ def _entry_point_classes() -> dict[str, type]:
     try:
         eps = entry_points(group=_ENTRY_POINT_GROUP)
     except TypeError:  # Python 3.9: entry_points() returns a dict keyed by group.
-        eps = entry_points().get(_ENTRY_POINT_GROUP, [])  # type: ignore[attr-defined]
+        eps = entry_points().get(_ENTRY_POINT_GROUP, [])  # type: ignore
     for ep in eps:
         try:
             found[ep.name] = ep.load()
@@ -77,6 +77,7 @@ def get_validator(
     Resolution order: built-in packs, then runtime registrations, then
     entry-point plugins. Raises :class:`UnknownDomainError` if nothing matches.
     """
+    cls: type | None = None
     if name in _BUILTINS:
         cls = _resolve_builtin(name)
     elif name in _REGISTERED:
