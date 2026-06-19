@@ -7,7 +7,7 @@ import pandas as pd
 from .adapters.polars import from_pandas, to_pandas
 from .cleaner import Cleaner, run_pipeline
 from .config import CleanConfig, merge_options
-from .domains import SEVERITY_TO_RISK, run_domain
+from .domains import SEVERITY_TO_RISK, DomainOutcome, run_domain
 from .engine.context import build_contexts
 from .engine.model_select import EngineMode, rank_missing_models
 from .plan import suggest_plan
@@ -130,19 +130,19 @@ def _clean_with_domain(
     return (out, rep) if return_report else out
 
 
-def _fold_domain_outcome(rep: CleanReport, outcome: object) -> None:
+def _fold_domain_outcome(rep: CleanReport, outcome: DomainOutcome) -> None:
     """Merge a domain run's findings/repairs into the existing CleanReport."""
-    report = outcome.report  # type: ignore[attr-defined]
-    rep.domain = outcome.domain  # type: ignore[attr-defined]
-    rep.domain_trust_score = outcome.trust_score  # type: ignore[attr-defined]
+    report = outcome.report
+    rep.domain = outcome.domain
+    rep.domain_trust_score = outcome.trust_score
     rep.domain_findings = [r.to_dict() for r in report.results]
-    rep.domain_repairs = [a.to_dict() for a in outcome.repairs.actions]  # type: ignore[attr-defined]
+    rep.domain_repairs = [a.to_dict() for a in outcome.repairs.actions]
     for result in report.results:
         if not result.violated:
             continue
         col = report.mapping.actual(result.fields[0]) if result.fields else None
         rep.add(
-            step=f"domain:{outcome.domain}:{result.rule_id}",  # type: ignore[attr-defined]
+            step=f"domain:{outcome.domain}:{result.rule_id}",
             description=result.message or result.name,
             column=col,
             count=result.n_violations,
@@ -151,12 +151,12 @@ def _fold_domain_outcome(rep: CleanReport, outcome: object) -> None:
         )
         if result.severity == "error":
             rep.add_warning(
-                f"[{outcome.domain}] {result.rule_id}: {result.message or result.name}"  # type: ignore[attr-defined]
+                f"[{outcome.domain}] {result.rule_id}: {result.message or result.name}"
             )
-    applied = sum(1 for a in outcome.repairs.actions if a.status == "applied")  # type: ignore[attr-defined]
+    applied = sum(1 for a in outcome.repairs.actions if a.status == "applied")
     if applied:
         rep.add_recommendation(
-            f"{outcome.domain}: {applied} domain repair(s) applied — see domain_repairs"  # type: ignore[attr-defined]
+            f"{outcome.domain}: {applied} domain repair(s) applied — see domain_repairs"
         )
 
 
