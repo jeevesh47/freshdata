@@ -4,7 +4,7 @@ import freshdata as fd
 
 
 def test_shape_and_memory_bookkeeping(messy):
-    _, report = fd.clean(messy, report=True)
+    _, report = fd.clean(messy, return_report=True)
     assert report.rows_before == 5
     assert report.cols_before == 6
     assert report.rows_after == 4
@@ -15,14 +15,14 @@ def test_shape_and_memory_bookkeeping(messy):
 
 
 def test_report_is_iterable_and_sized(messy):
-    _, report = fd.clean(messy, report=True)
+    _, report = fd.clean(messy, return_report=True)
     assert len(report) == len(list(report))
     assert all(isinstance(a, fd.Action) for a in report)
     assert report.cells_changed > 0
 
 
 def test_to_dict_is_json_serializable(messy):
-    _, report = fd.clean(messy, report=True)
+    _, report = fd.clean(messy, return_report=True)
     payload_dict = report.to_dict()
     payload = json.dumps(payload_dict)
     assert "drop_duplicates" in payload
@@ -30,7 +30,7 @@ def test_to_dict_is_json_serializable(messy):
 
 
 def test_to_frame(messy):
-    _, report = fd.clean(messy, report=True)
+    _, report = fd.clean(messy, return_report=True)
     frame = report.to_frame()
     assert list(frame.columns) == ["step", "column", "description", "count",
                                    "rationale", "risk", "confidence", "model_id"]
@@ -38,7 +38,7 @@ def test_to_frame(messy):
 
 
 def test_summary_mentions_key_facts(messy):
-    _, report = fd.clean(messy, report=True)
+    _, report = fd.clean(messy, return_report=True)
     text = report.summary()
     assert "rows:" in text and "5 -> 4" in text
     assert "[fix_dtypes]" in text
@@ -54,12 +54,12 @@ def test_action_str_format():
 
 
 def test_bool_reflects_whether_anything_changed(messy, already_clean):
-    _, dirty_report = fd.clean(messy, report=True)
-    _, clean_report = fd.clean(already_clean, report=True)
+    _, dirty_report = fd.clean(messy, return_report=True)
+    _, clean_report = fd.clean(already_clean, return_report=True)
     assert dirty_report
     assert not clean_report
 
 
 def test_repr_is_compact(messy):
-    _, report = fd.clean(messy, report=True)
+    _, report = fd.clean(messy, return_report=True)
     assert repr(report).startswith("<CleanReport:")

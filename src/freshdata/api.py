@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import pandas as pd
 
 from .adapters.polars import from_pandas, to_pandas
@@ -11,30 +9,16 @@ from .cleaner import Cleaner
 from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
 from .engine.model_select import EngineMode, rank_missing_models
-from .plan import RepairPlan, build_repair_plan, suggest_plan
+from .plan import suggest_plan
 from .profile import Profile, build_profile
 from .report import CleanReport
-
-#: Distinguishes "argument not given" from a meaningful ``None``
-#: (e.g. ``outlier_action=None`` means "detect but preserve outliers").
-_UNSET: Any = object()
 
 
 def clean(
     df: pd.DataFrame,
     *,
-    strategy: str | None = None,
-    missing_threshold_low: float | None = None,
-    missing_threshold_medium: float | None = None,
-    missing_threshold_high: float | None = None,
-    duplicate_threshold: float | None = None,
-    outlier_method: str | None = None,
-    outlier_action: str | None = _UNSET,
-    preserve_original: bool | None = None,
-    return_report: bool = False,
-    verbose: bool | None = None,
-    report: bool = False,
     config: CleanConfig | None = None,
+    return_report: bool = False,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
     """Clean a DataFrame and return a new, repaired one.
@@ -64,42 +48,19 @@ def clean(
     ----------
     df:
         The DataFrame to clean.
-    strategy:
-        ``"auto"`` (default — run the decision engine) or ``"conservative"``.
-    missing_threshold_low / missing_threshold_medium / missing_threshold_high:
-        Band edges for the missing-value rules (defaults 0.05 / 0.30 / 0.60):
-        low → impute (mean/median/mode/ffill by context), medium → robust
-        impute (median, KNN, sentinel), high → keep only if important else
-        drop, extreme (above high) → drop unless preserved or a label.
-    duplicate_threshold:
-        Duplicate-row ratio above which a data-quality warning is raised
-        (default 0.10).
-    outlier_method:
-        ``"iqr"`` (default), ``"zscore"``, ``"auto"`` (z-score for ~normal
-        columns, IQR for skewed), or ``"isolation_forest"`` (needs
-        scikit-learn; falls back to IQR).
-    outlier_action:
-        ``"auto"`` (default) — context-aware: flag under ``strategy="balanced"``,
-        cap under ``"aggressive"``. ``"cap"`` (winsorize to the fences),
-        ``"remove"``, and ``"flag"`` are explicit directives applied to every
-        eligible numeric column (heavy-tailed columns are still acted on, with a
-        warning); ``None`` detects and reports, changing nothing.
-    preserve_original:
-        Default True: the input frame is never mutated. False allows in-place
-        reuse of the input's memory.
+    config:
+        A prebuilt :class:`~freshdata.CleanConfig` to start from.
     return_report:
         If True, return ``(cleaned_df, CleanReport)``. The report carries
         per-action rationale/risk/confidence, missing counts before/after,
-        warnings, and recommendations for manual review. (``report=True`` is
-        an equivalent alias kept for backward compatibility.)
-    verbose:
-        Default True: print a one-line summary (plus any warnings) per clean.
-    config:
-        A prebuilt :class:`~freshdata.CleanConfig` to start from.
+        warnings, and recommendations for manual review.
     **options:
-        Any other :class:`~freshdata.CleanConfig` field as a keyword override
-        (e.g. ``preserve_columns``, ``target_column``, ``duplicate_keep``,
-        ``impute``, ``outliers``). Unknown names raise :class:`TypeError`.
+        Any :class:`~freshdata.CleanConfig` field as a keyword override — e.g.
+        ``strategy`` (``"balanced"`` default / ``"aggressive"`` / ``"conservative"``),
+        ``missing_threshold_low``/``_medium``/``_high``, ``duplicate_threshold``,
+        ``outlier_method``, ``outlier_action``, ``preserve_original``, ``verbose``,
+        ``preserve_columns``, ``target_column``, ``duplicate_keep``, ``impute``,
+        ``outliers``. Unknown names raise :class:`TypeError`.
 
     Examples
     --------
@@ -111,87 +72,12 @@ def clean(
     >>> fd.clean(df, outlier_action="flag", target_column="churn",
     ...          preserve_columns=("notes",), verbose=False)
     """
-    explicit = {
-        "strategy": strategy,
-        "missing_threshold_low": missing_threshold_low,
-        "missing_threshold_medium": missing_threshold_medium,
-        "missing_threshold_high": missing_threshold_high,
-        "duplicate_threshold": duplicate_threshold,
-        "outlier_method": outlier_method,
-        "preserve_original": preserve_original,
-        "verbose": verbose,
-    }
-    options.update({k: v for k, v in explicit.items() if v is not None})
-    if outlier_action is not _UNSET:
-        options["outlier_action"] = outlier_action
     cleaner = Cleaner(config=config, **options)
-    result = cleaner.clean(df, report=report or return_report)
-    if report or return_report:
+    result = cleaner.clean(df, report=return_report)
+    if return_report:
         cleaned, rep = result
         return from_pandas(cleaned, df), rep
     return from_pandas(result, df)
-
-
-def plan(
-    df: pd.DataFrame,
-    *,
-    mode: str = "suggest",
-    max_patches: int | None = None,
-    max_cells_scanned: int | None = None,
-    retain_snapshots: bool = True,
-    config: CleanConfig | None = None,
-    **options: object,
-) -> RepairPlan:
-    """Build a previewable, serializable repair plan without changing *df*.
-
-    ``mode="suggest"`` runs the configured cleaner and records the proposed
-    row, column, and cell patches. ``mode="inspect"`` records only the source
-    fingerprint and shape. ``mode="repair_safe"`` limits the plan to
-    deterministic representation repairs by disabling statistical engine
-    actions.
-    """
-    return build_repair_plan(
-        to_pandas(df),
-        mode=mode,
-        max_patches=max_patches,
-        max_cells_scanned=max_cells_scanned,
-        retain_snapshots=retain_snapshots,
-        config=config,
-        **options,
-    )
-
-
-def repair(
-    df: pd.DataFrame,
-    *,
-    mode: str = "repair_safe",
-    approved_patch_ids: set[str] | None = None,
-    return_plan: bool = False,
-    max_patches: int | None = None,
-    max_cells_scanned: int | None = None,
-    retain_snapshots: bool = True,
-    config: CleanConfig | None = None,
-    **options: object,
-) -> pd.DataFrame | tuple[pd.DataFrame, RepairPlan]:
-    """Apply a repair mode and optionally return the repair plan.
-
-    ``mode="repair_reviewed"`` applies only ``approved_patch_ids``. Other
-    modes apply every patch proposed by the plan.
-    """
-    repair_plan = build_repair_plan(
-        to_pandas(df),
-        mode=mode,
-        max_patches=max_patches,
-        max_cells_scanned=max_cells_scanned,
-        retain_snapshots=retain_snapshots,
-        config=config,
-        **options,
-    )
-    approved = set(approved_patch_ids or ()) if mode == "repair_reviewed" else None
-    repaired = from_pandas(repair_plan.apply(approved), df)
-    if return_plan:
-        return repaired, repair_plan
-    return repaired
 
 
 def _engine_mode(cfg: CleanConfig) -> EngineMode:

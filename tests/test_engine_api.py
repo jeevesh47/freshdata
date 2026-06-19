@@ -29,7 +29,7 @@ def test_return_report_tuple():
 
 
 def test_report_alias_still_works():
-    out, report = fd.clean(sample_df(), report=True, verbose=False)
+    out, report = fd.clean(sample_df(), return_report=True, verbose=False)
     assert isinstance(report, fd.CleanReport)
 
 

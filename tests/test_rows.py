@@ -6,7 +6,7 @@ import freshdata as fd
 
 def test_empty_rows_dropped_and_reported():
     df = pd.DataFrame({"a": [1, None, 3], "b": ["x", None, "z"]})
-    out, report = fd.clean(df, report=True)
+    out, report = fd.clean(df, return_report=True)
     assert len(out) == 2
     assert any(a.step == "drop_empty_rows" and a.count == 1 for a in report)
 
@@ -53,7 +53,7 @@ def test_unhashable_rows_skip_duplicates_with_note():
     # Multi-column duplicated() raises TypeError on unhashable cells; the
     # step must skip with a note instead of crashing.
     df = pd.DataFrame({"v": [[1], [1]], "w": [1, 2]})
-    out, report = fd.clean(df, report=True)
+    out, report = fd.clean(df, return_report=True)
     assert len(out) == 2  # nothing dropped
     assert any(a.step == "drop_duplicates" and "unhashable" in a.description
                for a in report)

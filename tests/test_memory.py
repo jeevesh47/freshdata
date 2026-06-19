@@ -22,7 +22,7 @@ def test_optimize_downcasts_and_categorizes():
     df = pd.DataFrame({"i": np.arange(100, dtype="int64"),
                        "f": np.linspace(0, 1, 100).astype("float64"),
                        "c": ["a", "b"] * 50})
-    out, report = fd.clean(df, optimize_memory=True, report=True)
+    out, report = fd.clean(df, optimize_memory=True, return_report=True)
     assert out["i"].dtype == "int8"
     assert out["f"].dtype == "float32"
     assert str(out["c"].dtype) == "category"
@@ -54,5 +54,5 @@ def test_category_threshold_configurable():
 def test_memory_reported_smaller():
     df = pd.DataFrame({"i": np.arange(10_000, dtype="int64"),
                        "c": ["x", "y"] * 5_000})
-    _, report = fd.clean(df, optimize_memory=True, report=True)
+    _, report = fd.clean(df, optimize_memory=True, return_report=True)
     assert report.memory_after < report.memory_before

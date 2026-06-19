@@ -9,7 +9,7 @@ QUIET = {"verbose": False}
 
 def test_exact_duplicates_removed_and_percentage_reported():
     df = pd.DataFrame({"a": [1, 1, 2, 3], "b": ["x", "x", "y", "z"]})
-    out, report = fd.clean(df, report=True, **QUIET)
+    out, report = fd.clean(df, return_report=True, **QUIET)
     assert len(out) == 3
     assert report.duplicates_removed == 1
     [action] = [a for a in report if a.step == "drop_duplicates"]
@@ -18,7 +18,7 @@ def test_exact_duplicates_removed_and_percentage_reported():
 
 def test_duplicate_ratio_above_threshold_warns():
     df = pd.DataFrame({"a": [1, 2] * 10})  # 90% duplicates
-    _, report = fd.clean(df, report=True, **QUIET)
+    _, report = fd.clean(df, return_report=True, **QUIET)
     assert any("duplicate" in w for w in report.warnings)
     assert report.recommendations
 
@@ -49,7 +49,7 @@ def test_keep_aggregate_means_numerics_and_keeps_first_text():
 def test_timeseries_duplicates_preserved_by_default():
     idx = pd.to_datetime(["2024-01-01", "2024-01-01", "2024-01-02"])
     df = pd.DataFrame({"v": [1, 1, 2]}, index=idx)
-    out, report = fd.clean(df, report=True, **QUIET)
+    out, report = fd.clean(df, return_report=True, **QUIET)
     assert len(out) == 3  # nothing removed
     assert any("time-indexed" in w for w in report.warnings)
 

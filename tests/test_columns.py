@@ -50,7 +50,7 @@ def test_renaming_can_be_disabled():
 
 def test_rename_recorded_in_report():
     df = pd.DataFrame({"First Name": [1]})
-    _, report = fd.clean(df, report=True)
+    _, report = fd.clean(df, return_report=True)
     actions = [a for a in report if a.step == "column_names"]
     assert len(actions) == 1
     assert "first_name" in actions[0].description

@@ -12,7 +12,7 @@ def test_clean_returns_new_frame_and_never_mutates_input(messy):
 
 
 def test_clean_report_tuple(messy):
-    out, report = fd.clean(messy, report=True)
+    out, report = fd.clean(messy, return_report=True)
     assert isinstance(out, pd.DataFrame)
     assert isinstance(report, fd.CleanReport)
     assert len(report) > 0
@@ -43,7 +43,7 @@ def test_empty_frames_pass_through():
 
 
 def test_already_clean_frame_is_untouched(already_clean):
-    out, report = fd.clean(already_clean, report=True)
+    out, report = fd.clean(already_clean, return_report=True)
     pd.testing.assert_frame_equal(out, already_clean)
     assert not report  # falsy: nothing was changed
 

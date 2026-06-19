@@ -19,7 +19,7 @@ def test_remaining_nans_are_always_explained_by_default():
     # 1 of 3 missing on a tiny frame: the engine preserves rather than guesses,
     # but it must say so in the report — NaNs are never left silently.
     df = pd.DataFrame({"a": [1.0, None, 3.0], "b": ["x", None, "z"]})
-    out, report = fd.clean(df, report=True, **KEEP_ROWS)
+    out, report = fd.clean(df, return_report=True, **KEEP_ROWS)
     assert out["a"].isna().sum() == 1
     explained = {a.column for a in report if a.step == "missing" and a.rationale}
     assert {"a", "b"} <= explained
@@ -47,14 +47,14 @@ def test_auto_uses_median_for_numbers_mode_for_text():
 
 def test_mean_skips_text_columns_with_note():
     df = pd.DataFrame({"t": ["x", None, "y"]})
-    out, report = fd.clean(df, impute="mean", report=True, **KEEP_ROWS)
+    out, report = fd.clean(df, impute="mean", return_report=True, **KEEP_ROWS)
     assert out["t"].isna().sum() == 1  # unchanged
     assert any(a.step == "impute" and "skipped" in a.description for a in report)
 
 
 def test_fractional_median_casts_integer_column():
     df = pd.DataFrame({"a": ["1", "2", None, None]})
-    out, report = fd.clean(df, impute="median", report=True, **KEEP_ROWS)
+    out, report = fd.clean(df, impute="median", return_report=True, **KEEP_ROWS)
     assert out["a"].dtype == "float64"  # median 1.5 cannot live in Int64
     assert out["a"].isna().sum() == 0
     assert any("cast to float64" in a.description for a in report)
@@ -68,7 +68,7 @@ def test_all_missing_column_is_skipped():
 
 def test_imputation_counts_reported():
     df = pd.DataFrame({"a": [1.0, None, None, 4.0]})
-    _, report = fd.clean(df, impute="median", report=True, **KEEP_ROWS)
+    _, report = fd.clean(df, impute="median", return_report=True, **KEEP_ROWS)
     [action] = [a for a in report if a.step == "impute"]
     assert action.count == 2
 
