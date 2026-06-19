@@ -111,8 +111,10 @@ def test_validate_runs_layers_and_scores(dummy_df):
     assert report.domain_trust_score < 1.0
     # layer ordering is enforced
     layers = [r.layer for r in report.results]
-    assert layers == sorted(layers, key=lambda layer: ("schema", "format", "reference",
-                                                        "business", "semantic").index(layer))
+    assert layers == sorted(
+        layers,
+        key=("schema", "format", "reference", "business", "semantic").index
+    )
 
 
 def test_validate_does_not_mutate(dummy_df):
