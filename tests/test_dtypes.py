@@ -60,7 +60,7 @@ def test_threshold_boundary():
 
 def test_coerced_values_are_reported():
     df = pd.DataFrame({"v": [str(i) for i in range(19)] + ["junk"]})
-    _, report = fd.clean(df, report=True)
+    _, report = fd.clean(df, return_report=True)
     [action] = [a for a in report if a.step == "fix_dtypes"]
     assert "unparseable" in action.description
 

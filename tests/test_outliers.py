@@ -30,7 +30,7 @@ def test_outliers_flagged_by_balanced_default():
 
 def test_clip_iqr():
     df = pd.DataFrame({"v": BASE + [1000.0]})
-    out, report = fd.clean(df, outliers="clip", report=True, **ISOLATE)
+    out, report = fd.clean(df, outliers="clip", return_report=True, **ISOLATE)
     assert out["v"].max() < 1000.0
     [action] = [a for a in report if a.step == "outliers"]
     assert action.count == 1 and "clipped" in action.description
@@ -67,7 +67,7 @@ def test_integer_columns_stay_integer_after_clip():
 def test_constant_and_boolean_columns_skipped():
     df = pd.DataFrame({"c": [5.0] * 11, "b": [True, False] * 5 + [True],
                        "v": BASE + [1000.0]})
-    out, report = fd.clean(df, outliers="clip", report=True, **ISOLATE)
+    out, report = fd.clean(df, outliers="clip", return_report=True, **ISOLATE)
     assert out["c"].tolist() == [5.0] * 11
     assert all(a.column == "v" for a in report if a.step == "outliers")
 

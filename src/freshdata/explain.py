@@ -10,10 +10,10 @@ import pandas as pd
 from pandas.api.types import is_numeric_dtype
 
 from .adapters.polars import to_pandas
+from .api import infer_roles
 from .cleaner import run_pipeline
 from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
-from .engine.model_select import EngineMode, rank_missing_models
 from .report import Action, CleanReport
 
 
@@ -141,11 +141,6 @@ class ExplainReport:
         }
 
 
-def _engine_mode(cfg: CleanConfig) -> EngineMode:
-    mode = cfg.engine_mode or "balanced"
-    return "balanced" if mode == "balanced" else "aggressive"
-
-
 def explain_clean(
     df: pd.DataFrame,
     *,
@@ -157,25 +152,9 @@ def explain_clean(
     cfg = merge_options(config, strategy=strategy, **options)
     df = to_pandas(df)  # accept polars frames like the other public entry points
     before_stats = _column_stats(df)
-    contexts = build_contexts(df, cfg)
     cleaned, report = run_pipeline(df, cfg)
-    mode = _engine_mode(cfg)
 
-    roles_rows = []
-    for col, ctx in sorted(contexts.items()):
-        primary = None
-        if ctx.missing_ratio > 0:
-            primary = rank_missing_models(df, col, ctx, cfg, mode=mode).primary
-        roles_rows.append({
-            "column": col,
-            "role": ctx.role,
-            "missing_pct": round(ctx.missing_ratio * 100, 2),
-            "cardinality": ctx.nunique,
-            "skew": ctx.skew,
-            "domain_sensitive": ctx.domain_sensitive,
-            "primary_missing_model": primary.model_id if primary else None,
-        })
-    roles_df = pd.DataFrame(roles_rows)
+    roles_df = infer_roles(df, config=cfg)
 
     actions_by_step: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for action in report:
