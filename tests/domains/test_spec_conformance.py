@@ -18,7 +18,7 @@ import pandas as pd
 import pytest
 
 import freshdata as fd
-from freshdata.domains.healthcare import HealthcareValidator
+from freshdata.domains.healthcare import AmbiguousFHIRResourceError, HealthcareValidator
 from freshdata.domains.registry import UnknownDomainError
 
 
@@ -365,7 +365,6 @@ def test_unknown_domain_raises():
 def test_healthcare_ambiguity_is_a_controlled_error():
     # A frame carrying both Observation- and Encounter-specific signals cannot
     # be auto-resolved and must raise a typed error, never a generic crash.
-    from freshdata.domains.healthcare import AmbiguousFHIRResourceError
     ambiguous = pd.DataFrame({
         "patient_id": ["P1", "P2"],
         "observation_id": ["O1", "O2"],   # Observation signal
