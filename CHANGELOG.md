@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Four new domain validator packs: `healthcare` (FHIR/US Core — `Patient`,
+  `Observation`, `Encounter` with `fhir_resource=`/auto-detection), `education`
+  (Ed-Fi), `agriculture` (ADAPT, with area/yield unit coercion), and `media`
+  (EIDR/DDEX via `media_type=`/auto-detection, with tested EIDR Mod 37,2 and ICPN
+  GS1 mod-10 check digits). Healthcare/education redact PHI in the audit trail as
+  `[PHI]` unless `audit_include_phi=True`. `fd.clean` gains optional `fhir_resource`,
+  `media_type`, and `audit_include_phi` keyword arguments.
 - P1 repair-layer primitives for validator bridges, schema drift
   harmonization, duplicate/replay defense, and human review queues.
 - Top-level bridge adapters: `freshdata.from_gx`, `freshdata.from_dbt_failures`,

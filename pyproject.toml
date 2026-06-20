@@ -124,6 +124,10 @@ freshdata = "freshdata.enterprise.cli:main"
 finance = "freshdata.domains.finance:FinanceValidator"
 retail = "freshdata.domains.retail:RetailValidator"
 transport = "freshdata.domains.transport:TransportValidator"
+healthcare = "freshdata.domains.healthcare:HealthcareValidator"
+education = "freshdata.domains.education:EducationValidator"
+agriculture = "freshdata.domains.agriculture:AgricultureValidator"
+media = "freshdata.domains.media:MediaValidator"
 
 [project.urls]
 Homepage = "https://freshcode-org.github.io/freshdata/"
