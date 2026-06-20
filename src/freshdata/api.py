@@ -26,6 +26,9 @@ def clean(
     domain: str | None = None,
     column_map: dict[str, str] | None = None,
     gtfs_file: str | None = None,
+    fhir_resource: str | None = None,
+    media_type: str | None = None,
+    audit_include_phi: bool = False,
     domain_kwargs: dict[str, object] | None = None,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
@@ -75,6 +78,15 @@ def clean(
     gtfs_file:
         File selector for a single-frame feed-domain run, such as ``"stops.txt"``
         with ``domain="transport"``. Full feeds can instead be passed as a dict.
+    fhir_resource:
+        FHIR resource selector for ``domain="healthcare"`` (``"Patient"``,
+        ``"Observation"``, ``"Encounter"``); auto-detected from columns if omitted.
+    media_type:
+        Sub-schema selector for ``domain="media"`` (``"content"`` / ``"release"``);
+        auto-detected from columns if omitted.
+    audit_include_phi:
+        For PHI-aware packs (healthcare, education), include raw PHI values in the
+        audit trail instead of masking them as ``[PHI]``. Defaults to False.
     domain_kwargs:
         Optional pack-specific constructor arguments. These are forwarded for
         both single-frame and feed-domain runs.
@@ -100,6 +112,13 @@ def clean(
     >>> ledger, rep = fd.clean(df, domain="finance", return_report=True)
     >>> rep.domain_trust_score                            # 0–1
     """
+    domain_kwargs = _merge_pack_selectors(
+        domain_kwargs,
+        domain,
+        fhir_resource=fhir_resource,
+        media_type=media_type,
+        audit_include_phi=audit_include_phi,
+    )
     if domain is not None:
         if isinstance(df, dict) or gtfs_file is not None:
             return _clean_feed(
@@ -129,6 +148,36 @@ def clean(
         cleaned, rep = result
         return from_pandas(cleaned, df), rep
     return from_pandas(result, df)
+
+
+def _merge_pack_selectors(
+    domain_kwargs: dict[str, object] | None,
+    domain: str | None,
+    *,
+    fhir_resource: str | None,
+    media_type: str | None,
+    audit_include_phi: bool,
+) -> dict[str, object] | None:
+    """Fold pack selectors into ``domain_kwargs`` forwarded to the validator constructor.
+
+    ``fhir_resource`` (healthcare), ``media_type`` (media), and ``audit_include_phi``
+    (healthcare/education) are promoted to top-level ``clean`` kwargs for ergonomics,
+    mirroring ``gtfs_file``. Each requires ``domain=`` to be set.
+    """
+    selectors: dict[str, object] = {}
+    if fhir_resource is not None:
+        selectors["fhir_resource"] = fhir_resource
+    if media_type is not None:
+        selectors["media_type"] = media_type
+    if audit_include_phi:
+        selectors["audit_include_phi"] = True
+    if not selectors:
+        return domain_kwargs
+    if domain is None:
+        raise TypeError(
+            "fhir_resource=, media_type=, and audit_include_phi= require a domain= to be set"
+        )
+    return {**(domain_kwargs or {}), **selectors}
 
 
 def _clean_with_domain(

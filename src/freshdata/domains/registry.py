@@ -20,6 +20,10 @@ _BUILTINS: dict[str, str] = {
     "finance": "freshdata.domains.finance:FinanceValidator",
     "retail": "freshdata.domains.retail:RetailValidator",
     "transport": "freshdata.domains.transport:TransportValidator",
+    "healthcare": "freshdata.domains.healthcare:HealthcareValidator",
+    "education": "freshdata.domains.education:EducationValidator",
+    "agriculture": "freshdata.domains.agriculture:AgricultureValidator",
+    "media": "freshdata.domains.media:MediaValidator",
 }
 
 #: Validators registered at runtime via :func:`register`.
