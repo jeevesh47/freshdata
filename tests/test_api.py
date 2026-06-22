@@ -33,6 +33,7 @@ def test_unknown_option_raises_with_suggestion():
     with pytest.raises(TypeError, match="drop_duplicates"):
         fd.clean(df, drop_duplicate=True)  # missing trailing 's'
 
+
 def test_clean_csv_output_file(tmp_path):
     df = pd.DataFrame({"a": [1, None, 3]})
 
@@ -44,16 +45,12 @@ def test_clean_csv_output_file(tmp_path):
     fd.clean_csv(
         input_path,
         output_path=output_path,
-        to_csv_kwargs={"index": False},
+        to_csv_kwargs={"sep": ";"},
     )
 
-    loaded = pd.read_csv(output_path)
+    loaded = pd.read_csv(output_path, sep=";")
 
-    pd.testing.assert_frame_equal(
-        loaded,
-        pd.DataFrame({"a": [1.0, 3.0]})
-    )
-
+    pd.testing.assert_frame_equal(loaded, pd.DataFrame({"a": [1.0, 3.0]}))
 
 
 def test_clean_csv_return_report(tmp_path):
@@ -68,16 +65,13 @@ def test_clean_csv_return_report(tmp_path):
     )
 
     assert isinstance(cleaned, pd.DataFrame)
-    assert report is not None
+    assert isinstance(report, fd.CleanReport)
+
 
 def test_clean_csv_read_csv_kwargs(tmp_path):
     input_path = tmp_path / "input.csv"
 
-    input_path.write_text(
-        "a;b\n"
-        "1;2\n"
-        "3;4\n"
-    )
+    input_path.write_text("a;b\n" "1;2\n" "3;4\n")
 
     cleaned = fd.clean_csv(
         input_path,

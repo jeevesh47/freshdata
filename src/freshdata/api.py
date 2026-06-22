@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
 from pathlib import Path
+from typing import Any, cast
 
 import pandas as pd
 
@@ -151,7 +151,6 @@ def clean(
     return from_pandas(result, df)
 
 
-
 def clean_csv(
     path: str | Path,
     *,
@@ -175,6 +174,7 @@ def clean_csv(
         Optional keyword arguments forwarded to ``pandas.read_csv``.
     to_csv_kwargs:
         Optional keyword arguments forwarded to ``DataFrame.to_csv``.
+        ``index`` defaults to False unless explicitly overridden.
     **options:
         Any :class:`~freshdata.CleanConfig` field accepted by
         :func:`freshdata.clean`.
@@ -186,25 +186,15 @@ def clean_csv(
     >>> fd.clean_csv("input.csv", output_path="cleaned.csv")
     >>> cleaned, report = fd.clean_csv("input.csv", return_report=True)
     """
-    if read_csv_kwargs is None:
-        read_csv_kwargs = {}
-
-    if to_csv_kwargs is None:
-        to_csv_kwargs = {}
-
-    df = pd.read_csv(path, **read_csv_kwargs)
-
+    df = pd.read_csv(path, **(read_csv_kwargs or {}))
     result = clean(
         df,
         return_report=return_report,
-        **options,
+        **options,  # type: ignore[arg-type]
     )
-
-    cleaned_df = result[0] if return_report else result
-
+    cleaned_df = cast(pd.DataFrame, result[0] if return_report else result)
     if output_path is not None:
-        cleaned_df.to_csv(output_path, **to_csv_kwargs)
-
+        cleaned_df.to_csv(output_path, **{"index": False, **(to_csv_kwargs or {})})
     return result
 
 
