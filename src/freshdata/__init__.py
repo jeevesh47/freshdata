@@ -29,6 +29,7 @@ from .cleaner import Cleaner
 # only stdlib + pandas at load; the enterprise layer is touched lazily at call time.
 from .compliance import ComplianceBundle, ComplianceConfig, generate_compliance_report
 from .config import CleanConfig
+from .execution import EngineConfig
 from .explain import ExplainReport, explain_clean
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .profile import ColumnProfile, Profile
@@ -46,6 +47,7 @@ __all__ = [
     "ColumnProfile",
     "ComplianceBundle",
     "ComplianceConfig",
+    "EngineConfig",
     "ExplainReport",
     "Profile",
     "__version__",

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 
@@ -13,10 +13,14 @@ from .config import CleanConfig, merge_options
 from .domains import SEVERITY_TO_RISK, DomainOutcome, run_domain, validator_class
 from .engine.context import build_contexts
 from .engine.model_select import EngineMode, rank_missing_models
+from .execution import run_with_engine
 from .plan import suggest_plan
 from .profile import Profile, build_profile
 from .report import CleanReport
 from .steps.columns import normalized_column_labels
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from .execution import EngineConfig
 
 
 def clean(
@@ -31,6 +35,9 @@ def clean(
     media_type: str | None = None,
     audit_include_phi: bool = False,
     domain_kwargs: dict[str, object] | None = None,
+    engine: str = "pandas",
+    output_format: str = "pandas",
+    engine_config: EngineConfig | None = None,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
     """Clean a DataFrame and return a new, repaired one.
@@ -143,6 +150,25 @@ def clean(
         raise TypeError("column_map requires a domain= to be set")
     if gtfs_file is not None:
         raise TypeError("gtfs_file requires domain='transport' (or another feed domain)")
+    if (
+        engine != "pandas"
+        or output_format != "pandas"
+        or engine_config is not None
+        or isinstance(df, str)
+    ):
+        # Out-of-core / Arrow-native path: run the clean on Polars or DuckDB, or
+        # read a file path. Default callers passing an in-memory pandas/polars
+        # frame (engine="pandas", output_format="pandas") never reach here, so the
+        # existing in-memory behaviour is unchanged.
+        return run_with_engine(
+            df,
+            merge_options(config, **options),
+            engine=engine,
+            output_format=output_format,
+            engine_config=engine_config,
+            return_report=return_report,
+        )
+
     cleaner = Cleaner(config=config, **options)
     result = cleaner.clean(df, report=return_report)
     if return_report:
