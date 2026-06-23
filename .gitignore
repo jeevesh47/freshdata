@@ -17,3 +17,8 @@ htmlcov/
 
 # MkDocs build output
 site/
+
+# Out-of-core engine: benchmark outputs, synthetic data, and DuckDB spill
+src/freshdata/benchmarks/results/
+/tmp/freshdata_bench/
+/tmp/freshdata_spill/

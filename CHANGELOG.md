@@ -7,6 +7,25 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New `freshdata.execution` subpackage: a pluggable, out-of-core / Arrow-native
+  execution engine. `fd.clean()` gains keyword-only `engine` (`"pandas"` |
+  `"polars"` | `"duckdb"` | `"auto"`), `output_format` (`"pandas"` | `"polars"` |
+  `"arrow"`), and `engine_config` (`EngineConfig`) arguments — all backward
+  compatible; default callers are unchanged. The **Polars** backend cleans
+  `LazyFrame`/Parquet sources with projection/predicate pushdown and streaming
+  collection; the **DuckDB** backend cleans via staged SQL with spill-to-disk
+  under a configurable `memory_limit`. Both reproduce the deterministic
+  representation-repair + structural-reduction + full-row-dedup subset natively
+  (identical `CleanReport` to the pandas pipeline) and transparently fall back to
+  pandas for the accuracy-first decision engine, dtype heuristics, and opt-in
+  impute/outliers. `engine="auto"` picks a backend from the source type and row
+  count, and `fd.clean("data.parquet")` now also reads a file path directly. New
+  optional extras: `freshdata[polars|duckdb|pyarrow|outofcore|bench]`.
+- New `freshdata.benchmarks` harness (`python -m freshdata.benchmarks.run_benchmarks`)
+  that generates synthetic Parquet at a target row count without materialising it,
+  then times `fd.clean` across the pandas/polars/duckdb backends (wall time, peak
+  resident memory, throughput, Data Trust Score). See
+  `src/freshdata/benchmarks/RESULTS.md` for a 10k–10M reference run.
 - New `freshdata.integrations` subpackage with first-class orchestration hooks for
   **Dagster** (`freshdata_asset_check`, `FreshDataResource`), **Airflow**
   (`FreshDataCleanOperator`), and **dbt** (`FreshDataDbtTransform`, the `dbt-gate`

@@ -64,6 +64,20 @@ polars = [
 pyarrow = [
     "pyarrow>=10",
 ]
+duckdb = [
+    "duckdb>=0.10",
+]
+# Benchmark harness (synthetic Parquet generation + memory measurement).
+bench = [
+    "pyarrow>=10",
+    "psutil>=5.9",
+]
+# Everything for the out-of-core / Arrow-native execution engine.
+outofcore = [
+    "polars>=0.20",
+    "duckdb>=0.10",
+    "pyarrow>=10",
+]
 cli = [
     "pyyaml>=5.1",
 ]
@@ -89,6 +103,7 @@ all = [
     "scikit-learn>=1.0",
     "pyyaml>=5.1",
     "cleanlab>=2.0",
+    "duckdb>=0.10",
 ]
 dev = [
     "pytest>=7.0",
@@ -102,6 +117,8 @@ dev = [
     "pyarrow>=10",
     "pyyaml>=5.1",
     "sqlalchemy>=1.4",
+    "duckdb>=0.10",
+    "psutil>=5.9",
 ]
 docs = [
     "mkdocs-material>=9.5",
@@ -218,6 +235,12 @@ ignore = [
 "src/freshdata/integrations/dbt/__init__.py" = ["PLC0415"]
 # Integration tests import adapters in-function (after fixtures patch sys.modules).
 "tests/test_integrations/*" = ["PLC0415"]
+# Out-of-core engine: every backend imports its optional dependency (polars,
+# duckdb, pyarrow) lazily (PLC0415) so `import freshdata` stays light, and the
+# backend modules are imported lazily by the selector to avoid hard deps.
+"src/freshdata/execution/*" = ["PLC0415"]
+"src/freshdata/benchmarks/*" = ["PLC0415"]
+"tests/test_execution/*" = ["PLC0415"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -229,5 +252,5 @@ follow_imports = "silent"
 files = ["src/freshdata"]
 
 [[tool.mypy.overrides]]
-module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*"]
+module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*", "duckdb.*", "pyarrow.*", "psutil.*"]
 ignore_missing_imports = true
